@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for debugging Node.js
+node_modules/
+node_modules
+*.tsbuildinfo
+
+# Environment variable files
+.env
+.env.local
+.env.*.local
+
+# Vercel and deployment
+.vercel
+output/
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+
+# Optional npm cache directory
+.npm/
+
+# Build outputs
+dist/
+build/
+
