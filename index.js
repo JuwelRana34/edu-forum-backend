@@ -136,6 +136,12 @@ app.post("/user", async (req, res) => {
   });
   res.send(response);
 });
+app.get("/user", verifyToken, async (req, res) => {
+  const {email} = req.query;
+  if(req.email !== email) return res.send({ message: "unauthorize access" });
+  const user = await users.findOne({ email: email });
+  res.send(user);
+});
 app.get("/users", async (req, res) => {
   const user = await users.find().toArray();
   res.send(user);
