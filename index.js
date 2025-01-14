@@ -142,6 +142,12 @@ app.get("/user", verifyToken, async (req, res) => {
   const user = await users.findOne({ email: email });
   res.send(user);
 });
+app.get("/user/recentPost", verifyToken, async (req, res) => {
+  const {email} = req.query;
+  if(req.email !== email) return res.send({ message: "unauthorize access" });
+  const recentPosts = await posts.find({ email: email }).sort({createdAt: -1}).toArray().limit(3);
+  res.send(recentPosts);
+});
 app.get("/users", async (req, res) => {
   const user = await users.find().toArray();
   res.send(user);
