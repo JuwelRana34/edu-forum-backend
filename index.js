@@ -94,6 +94,25 @@ const verifyToken = (req, res, next) => {
     next();
   });
 };
+const isAdmin =  (req, res, next) => {
+  let token = req.cookies?.token;
+  if (!token) {
+    return res.status(403).send({ message: " unauthorized access" });
+  }
+  jwt.verify(token, process.env.jwt_secret, async (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: " unauthorized access" });
+    }
+
+    const email = decoded.email;
+    const user = await users.findOne({ email: email });
+     if (user.role !== "admin") {
+       return res.status(403).send({ message: " unauthorized access" });
+     }
+
+    next();
+  });
+};
 
 
 
@@ -133,7 +152,7 @@ app.get('/users', async(req, res) => {
 })
 
 // tag api 
-app.post('/tag',verifyToken, async(req, res) => {
+app.post('/tag',verifyToken,isAdmin, async(req, res) => {
       const tag = req.body
       const response = await tags.insertOne(tag)
       res.send(response)
