@@ -145,7 +145,8 @@ app.get("/user", verifyToken, async (req, res) => {
 app.get("/user/recentPost", verifyToken, async (req, res) => {
   const {email} = req.query;
   if(req.email !== email) return res.send({ message: "unauthorize access" });
-  const recentPosts = await posts.find({ email: email }).sort({createdAt: -1}).toArray().limit(3);
+  const recentPosts = await posts.find({ 
+    Author_Email: email }).sort({createdAt: -1}).limit(3).toArray();
   res.send(recentPosts);
 });
 app.get("/users", async (req, res) => {
