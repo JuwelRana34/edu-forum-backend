@@ -1,74 +1,66 @@
-const express = require('express');
+const express = require("express");
 const app = express();
 let jwt = require("jsonwebtoken");
 var cookieParser = require("cookie-parser");
-const cors = require('cors');
+const cors = require("cors");
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
-//  middleware 
-app.use(cors(
-    {
-        origin: ["http://localhost:5173","https://edu-forum-bd.web.app"],
-        credentials: true
-    }
-));
+//  middleware
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "https://edu-forum-bd.web.app"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
-require('dotenv').config()
+require("dotenv").config();
 
-
-// database setup 
-const uri =`mongodb+srv://${process.env.DB_UserName}:${process.env.DB_Pass}@cluster0.ocbhdf0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
+// database setup
+const uri = `mongodb+srv://${process.env.DB_UserName}:${process.env.DB_Pass}@cluster0.ocbhdf0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // const uri ="mongodb://localhost:27017"
 
- // Create a MongoClient with a MongoClientOptions object to set the Stable API version
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
-    serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    },
-  });
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
 
-  const database = client.db("forum");
-  const users = database.collection("users");
-  const posts = database.collection("posts");
-  const comments = database.collection("comments");
-  const announcements = database.collection("announcements");
-  const reports = database.collection("reports");
-  const payments = database.collection("payments");
-  const tags  = database.collection("tags ");
-  
+const database = client.db("forum");
+const users = database.collection("users");
+const posts = database.collection("posts");
+const comments = database.collection("comments");
+const announcements = database.collection("announcements");
+const reports = database.collection("reports");
+const payments = database.collection("payments");
+const tags = database.collection("tags ");
 
-    
-
-  async function run() {
-    try {
-      // Connect the client to the server	(optional starting in v4.7)
-      // await client.connect();
-      // Send a ping to confirm a successful connection
-      // await database.command({ ping: 1 });
-      console.log(
-        "Pinged your deployment. You successfully connected to MongoDB!"
-      );
-    } finally {
-      // Ensures that the client will close when you finish/error
-      // await client.close();
-    }
+async function run() {
+  try {
+    // Connect the client to the server	(optional starting in v4.7)
+    // await client.connect();
+    // Send a ping to confirm a successful connection
+    // await database.command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
+  } finally {
+    // Ensures that the client will close when you finish/error
+    // await client.close();
   }
-  run().catch(console.dir);
-
- 
+}
+run().catch(console.dir);
 
 // routes
 
 // routes
 
 app.post("/jwt", (req, res) => {
-
   const playload = req.body;
 
   let token = jwt.sign(playload, process.env.jwt_secret, { expiresIn: "365d" });
@@ -94,7 +86,7 @@ const verifyToken = (req, res, next) => {
     next();
   });
 };
-const isAdmin =  (req, res, next) => {
+const isAdmin = (req, res, next) => {
   let token = req.cookies?.token;
   if (!token) {
     return res.status(403).send({ message: " unauthorized access" });
@@ -106,15 +98,13 @@ const isAdmin =  (req, res, next) => {
 
     const email = decoded.email;
     const user = await users.findOne({ email: email });
-     if (user.role !== "admin") {
-       return res.status(403).send({ message: " unauthorized access" });
-     }
+    if (user.role !== "admin") {
+      return res.status(403).send({ message: " unauthorized access" });
+    }
 
     next();
   });
 };
-
-
 
 app.post("/logOut", (req, res) => {
   res
@@ -126,53 +116,62 @@ app.post("/logOut", (req, res) => {
     .send({ success: true });
 });
 
-app.get("/", async(req, res) => {
-    // const response = await collection.find().toArray()
-    res.send("response");
-})
+app.get("/", async (req, res) => {
+  const response = await collection.find().toArray();
+  res.send(response);
+});
 
-// user api 
-app.post("/user", async(req, res) => {
-   const userinfo = req.body
-   const user = await users.findOne({email: userinfo.email})
-   if(user){
-     return res.send({message: "User already exists"})
-   }
-   const response = await users.insertOne({
+// user api
+app.post("/user", async (req, res) => {
+  const userinfo = req.body;
+  const user = await users.findOne({ email: userinfo.email });
+  if (user) {
+    return res.send({ message: "User already exists" });
+  }
+  const response = await users.insertOne({
     ...userinfo,
     role: "user",
     badge: "bronze",
-    createdAt: new Date(), 
-   })
-    res.send(response);
-})
-app.get('/users', async(req, res) => {
-  const user = await users.find().toArray()
-  res.send(user)
-})
-
-// tag api 
-app.post('/tag',verifyToken,isAdmin, async(req, res) => {
-      const tag = req.body
-      const response = await tags.insertOne(tag)
-      res.send(response)
+    createdAt: new Date(),
+  });
+  res.send(response);
 });
-app.get('/tag', async(req, res) => {
-      const response = await tags.find().toArray()
-      res.send(response)
+app.get("/users", async (req, res) => {
+  const user = await users.find().toArray();
+  res.send(user);
 });
 
+// tag api
+app.post("/tag", verifyToken, isAdmin, async (req, res) => {
+  const tag = req.body;
+  const response = await tags.insertOne(tag);
+  res.send(response);
+});
+app.get("/tag",verifyToken, async (req, res) => {
+  const response = await tags.find().toArray();
+  res.send(response);
+});
 
+// admin api
+
+app.get("/admin", verifyToken, async (req, res) => {
+  const email = req.email;
+  const user = await users.findOne({ email: email });
+  res.send(user.role);
+});
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send({ error: "Something went wrong!" });
 });
 
-
-
-
+//post api 
+app.post("/post", verifyToken, async (req, res) => {
+     const post = req.body;
+     const response = await posts.insertOne({...post, createdAt: new Date() });
+     res.send(response);
+})
 
 app.listen(port, (req, res) => {
-    console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
