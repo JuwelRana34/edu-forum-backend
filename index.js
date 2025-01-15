@@ -17,6 +17,10 @@ app.use(express.json());
 app.use(cookieParser());
 require("dotenv").config();
 
+// stripe setup 
+
+const stripe = require('stripe')(process.env.PAYMENT_SECRET);
+
 // database setup
 const uri = `mongodb+srv://${process.env.DB_UserName}:${process.env.DB_Pass}@cluster0.ocbhdf0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -173,18 +177,75 @@ app.get("/admin", verifyToken, async (req, res) => {
   res.send(user.role);
 });
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send({ error: "Something went wrong!" });
-});
+
 
 //post api 
 app.post("/post", verifyToken, async (req, res) => {
      const post = req.body;
+     const postCount = await posts.countDocuments({Author_Email: post.Author_Email});
+     const user = await users.findOne({email: post.Author_Email});
+     console.log(user)
+     if(postCount >= 5 && user.badge !== "gold" ){
+       return res.status(403).send({ message: "User can't post more than 5 please  become a gold member." });
+        
+     }
      const response = await posts.insertOne({...post, createdAt: new Date() });
      res.send(response);
+    console.log(response)
 })
 
+app.get("/checkPostCount", verifyToken, async (req, res) => {
+    const {email} = req.query;
+    if(req.email!== email) return res.send({ message: "unauthorize access" });
+    const isGold= await users.findOne({ email: email});
+  
+    const postCount = await posts.countDocuments({Author_Email: email});
+    res.send({postCount: postCount, membership:isGold.badge});
+  
+});
+
+// payments api  
+
+app.post("/create-payment-intent", verifyToken, async (req, res) => {
+   const { price} = req.body
+   const totalPrice = price * 100
+   const {client_secret}= await stripe.paymentIntents.create({
+    amount: totalPrice,
+    currency: 'usd',
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  })
+
+  res.send({client_secret: client_secret})
+
+});
+
+app.post("/charge-payment", verifyToken, async (req, res) => {
+     const {email , amount ,paymentIntentId} = req.body;
+     
+     const updateMemberShip = await users.updateOne({email: email},
+       { $set: {badge: "gold" } }
+     );
+     const payment = await payments.insertOne({
+       email: email,
+       amount: amount,
+       paymentIntentId: paymentIntentId,
+       createdAt: new Date(),
+     });
+
+
+     res.send("payment successfully done now you are a gold member");
+    
+})
+
+
+
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ error: "Something went wrong!" });
+});
 app.listen(port, (req, res) => {
   console.log(`Server running on port ${port}`);
 });
