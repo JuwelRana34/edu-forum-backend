@@ -244,6 +244,23 @@ app.get("/sortByPopularity", async (req, res) => {
   }
 });
 
+// mypost 
+
+app.get("/mypost", verifyToken, async (req, res) => {
+  const {email} = req.query;
+  if(req.email!== email) return res.send({ message: "unauthorize access" });
+
+  const response = await posts.find({ Author_Email: email }).toArray();
+  res.send(response);
+});
+
+app.delete("/deleteMyPost/:id" , verifyToken, async ( req, res) =>{
+  const {id} = req.params;
+  console.log(id)
+  const response = await posts.deleteOne({_id: new ObjectId(id)});
+  res.send(response);
+})
+
 // payments api  
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
