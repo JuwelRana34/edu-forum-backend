@@ -189,7 +189,7 @@ app.post("/post", verifyToken, async (req, res) => {
     Author_Email: post.Author_Email,
   });
   const user = await users.findOne({ email: post.Author_Email });
-  console.log(user);
+ 
   if (postCount >= 5 && user.badge !== "gold") {
     return res
       .status(403)
@@ -199,7 +199,7 @@ app.post("/post", verifyToken, async (req, res) => {
   }
   const response = await posts.insertOne({ ...post, createdAt: new Date() });
   res.send(response);
-  console.log(response);
+  
 });
 
 app.get("/checkPostCount", verifyToken, async (req, res) => {
@@ -287,7 +287,7 @@ app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
 
   if (req.email !== email) return res.send({ message: "unauthorize access" });
   const response = await posts.deleteOne({ _id: new ObjectId(id) });
-  console.log(response);
+ 
   res.send(response);
 });
 
