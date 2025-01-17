@@ -222,7 +222,27 @@ app.get("/AllPost", verifyToken, async (req, res) => {
   res.send(response);
 });
 
+app.get("/sortByPopularity", async (req, res) => {
+  try {
+    const post = await posts
+      .aggregate([
+        {
+          $addFields: {
+            popularity: { $subtract: ["$UpVote", "$DownVote"] },
+          },
+        },
+        {
+          $sort: { popularity: -1 }, 
+        },
+      ])
+      .toArray();
 
+    res.status(200).json(post);
+  } catch (error) {
+    console.error("Error sorting by popularity:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 // payments api  
 
