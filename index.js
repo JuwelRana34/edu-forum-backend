@@ -17,9 +17,9 @@ app.use(express.json());
 app.use(cookieParser());
 require("dotenv").config();
 
-// stripe setup 
+// stripe setup
 
-const stripe = require('stripe')(process.env.PAYMENT_SECRET);
+const stripe = require("stripe")(process.env.PAYMENT_SECRET);
 
 // database setup
 const uri = `mongodb+srv://${process.env.DB_UserName}:${process.env.DB_Pass}@cluster0.ocbhdf0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -141,16 +141,21 @@ app.post("/user", async (req, res) => {
   res.send(response);
 });
 app.get("/user", verifyToken, async (req, res) => {
-  const {email} = req.query;
-  if(req.email !== email) return res.send({ message: "unauthorize access" });
+  const { email } = req.query;
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
   const user = await users.findOne({ email: email });
   res.send(user);
 });
 app.get("/user/recentPost", verifyToken, async (req, res) => {
-  const {email} = req.query;
-  if(req.email !== email) return res.send({ message: "unauthorize access" });
-  const recentPosts = await posts.find({ 
-    Author_Email: email }).sort({createdAt: -1}).limit(3).toArray();
+  const { email } = req.query;
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
+  const recentPosts = await posts
+    .find({
+      Author_Email: email,
+    })
+    .sort({ createdAt: -1 })
+    .limit(3)
+    .toArray();
   res.send(recentPosts);
 });
 app.get("/users", async (req, res) => {
@@ -164,7 +169,7 @@ app.post("/tag", verifyToken, isAdmin, async (req, res) => {
   const response = await tags.insertOne(tag);
   res.send(response);
 });
-app.get("/tag",verifyToken, async (req, res) => {
+app.get("/tag", verifyToken, async (req, res) => {
   const response = await tags.find().toArray();
   res.send(response);
 });
@@ -177,34 +182,36 @@ app.get("/admin", verifyToken, async (req, res) => {
   res.send(user.role);
 });
 
-
-
-//post api 
+//post api
 app.post("/post", verifyToken, async (req, res) => {
-     const post = req.body;
-     const postCount = await posts.countDocuments({Author_Email: post.Author_Email});
-     const user = await users.findOne({email: post.Author_Email});
-     console.log(user)
-     if(postCount >= 5 && user.badge !== "gold" ){
-       return res.status(403).send({ message: "User can't post more than 5 please  become a gold member." });
-        
-     }
-     const response = await posts.insertOne({...post, createdAt: new Date() });
-     res.send(response);
-    console.log(response)
-})
-
-app.get("/checkPostCount", verifyToken, async (req, res) => {
-    const {email} = req.query;
-    if(req.email!== email) return res.send({ message: "unauthorize access" });
-    const isGold= await users.findOne({ email: email});
-  
-    const postCount = await posts.countDocuments({Author_Email: email});
-    res.send({postCount: postCount, membership:isGold.badge});
-  
+  const post = req.body;
+  const postCount = await posts.countDocuments({
+    Author_Email: post.Author_Email,
+  });
+  const user = await users.findOne({ email: post.Author_Email });
+  console.log(user);
+  if (postCount >= 5 && user.badge !== "gold") {
+    return res
+      .status(403)
+      .send({
+        message: "User can't post more than 5 please  become a gold member.",
+      });
+  }
+  const response = await posts.insertOne({ ...post, createdAt: new Date() });
+  res.send(response);
+  console.log(response);
 });
 
-// get all post with tag and scherch 
+app.get("/checkPostCount", verifyToken, async (req, res) => {
+  const { email } = req.query;
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
+  const isGold = await users.findOne({ email: email });
+
+  const postCount = await posts.countDocuments({ Author_Email: email });
+  res.send({ postCount: postCount, membership: isGold.badge });
+});
+
+// get all post with tag and scherch
 
 app.get("/AllPost", verifyToken, async (req, res) => {
   const { tag, search } = req.query;
@@ -215,10 +222,10 @@ app.get("/AllPost", verifyToken, async (req, res) => {
   }
 
   if (search) {
-    query = { tag: { $regex: `^${search}$`, $options: 'i' } };
-  };
-  
-  const response = await posts.find(query).sort({createdAt: -1}).toArray();
+    query = { tag: { $regex: `^${search}$`, $options: "i" } };
+  }
+
+  const response = await posts.find(query).sort({ createdAt: -1 }).toArray();
   res.send(response);
 });
 
@@ -232,7 +239,7 @@ app.get("/sortByPopularity", async (req, res) => {
           },
         },
         {
-          $sort: { popularity: -1 }, 
+          $sort: { popularity: -1 },
         },
       ])
       .toArray();
@@ -244,60 +251,78 @@ app.get("/sortByPopularity", async (req, res) => {
   }
 });
 
-// mypost 
+// mypost
 
 app.get("/mypost", verifyToken, async (req, res) => {
-  const {email} = req.query;
-  if(req.email!== email) return res.send({ message: "unauthorize access" });
+  const { email } = req.query;
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
 
-  const response = await posts.find({ Author_Email: email }).toArray();
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  try {
+    const total = await posts.countDocuments();
+    const items = await posts.find().skip(skip).limit(limit).toArray();
+
+    res.json({
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      items,
+    });
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+
+  // const response = await posts.find({ Author_Email: email }).toArray();
+  // res.send(response);
+});
+
+app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const {email} = req.query;
+
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
+  const response = await posts.deleteOne({ _id: new ObjectId(id) });
+  console.log(response);
   res.send(response);
 });
 
-app.delete("/deleteMyPost/:id" , verifyToken, async ( req, res) =>{
-  const {id} = req.params;
-  console.log(id)
-  const response = await posts.deleteOne({_id: new ObjectId(id)});
-  res.send(response);
-})
-
-// payments api  
+// payments api
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
-   const { price} = req.body
-   const totalPrice = price * 100
-   const {client_secret}= await stripe.paymentIntents.create({
+  const { price } = req.body;
+  const totalPrice = price * 100;
+  const { client_secret } = await stripe.paymentIntents.create({
     amount: totalPrice,
-    currency: 'usd',
+    currency: "usd",
     automatic_payment_methods: {
       enabled: true,
     },
-  })
+  });
 
-  res.send({client_secret: client_secret})
-
+  res.send({ client_secret: client_secret });
 });
 
 app.post("/charge-payment", verifyToken, async (req, res) => {
-     const {email , amount ,paymentIntentId} = req.body;
-     
-     const updateMemberShip = await users.updateOne({email: email},
-       { $set: {badge: "gold" } }
-     );
-     const payment = await payments.insertOne({
-       email: email,
-       amount: amount,
-       paymentIntentId: paymentIntentId,
-       createdAt: new Date(),
-     });
+  const { email, amount, paymentIntentId } = req.body;
 
+  const updateMemberShip = await users.updateOne(
+    { email: email },
+    { $set: { badge: "gold" } }
+  );
+  const payment = await payments.insertOne({
+    email: email,
+    amount: amount,
+    paymentIntentId: paymentIntentId,
+    createdAt: new Date(),
+  });
 
-     res.send("payment successfully done now you are a gold member");
-    
-})
-
-
-
+  res.send("payment successfully done now you are a gold member");
+});
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
