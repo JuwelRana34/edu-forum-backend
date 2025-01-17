@@ -204,6 +204,26 @@ app.get("/checkPostCount", verifyToken, async (req, res) => {
   
 });
 
+// get all post with tag and scherch 
+
+app.get("/AllPost", verifyToken, async (req, res) => {
+  const { tag, search } = req.query;
+  let query = {};
+
+  if (tag) {
+    query = { tag: tag };
+  }
+
+  if (search) {
+    query = { tag: { $regex: `^${search}$`, $options: 'i' } };
+  };
+  
+  const response = await posts.find(query).sort({createdAt: -1}).toArray();
+  res.send(response);
+});
+
+
+
 // payments api  
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
