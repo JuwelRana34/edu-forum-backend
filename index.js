@@ -90,24 +90,23 @@ const verifyToken = (req, res, next) => {
     next();
   });
 };
-const isAdmin = (req, res, next) => {
-  let token = req.cookies?.token;
-  if (!token) {
+const isAdmin = async (req, res, next) => {
+  // let token = req.cookies?.token;
+  // if (!token) {
+  //   return res.status(403).send({ message: " unauthorized access" });
+  // }
+  // jwt.verify(token, process.env.jwt_secret, async (err, decoded) => {
+  //   if (err) {
+  //     return res.status(401).send({ message: " unauthorized access" });
+  //   }
+
+  const email = req.email;
+  const user = await users.findOne({ email: email });
+  if (user.role !== "admin") {
     return res.status(403).send({ message: " unauthorized access" });
   }
-  jwt.verify(token, process.env.jwt_secret, async (err, decoded) => {
-    if (err) {
-      return res.status(401).send({ message: " unauthorized access" });
-    }
 
-    const email = decoded.email;
-    const user = await users.findOne({ email: email });
-    if (user.role !== "admin") {
-      return res.status(403).send({ message: " unauthorized access" });
-    }
-
-    next();
-  });
+  next();
 };
 
 app.post("/logOut", (req, res) => {
@@ -160,7 +159,6 @@ app.get("/user/recentPost", verifyToken, async (req, res) => {
   res.send(recentPosts);
 });
 app.get("/users", verifyToken, isAdmin, async (req, res) => {
-     
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
@@ -180,20 +178,16 @@ app.get("/users", verifyToken, isAdmin, async (req, res) => {
     console.error("Error fetching items:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-
 });
 
 app.put("/makeAdmin", verifyToken, isAdmin, async (req, res) => {
-    const {userName} = req.query
-    const user = await users.updateOne(
-      { name: userName },
-      { $set: 
-        { role: "admin" }
-       }
-     
-    );
-    console.log(user)
-})
+  const { userName } = req.query;
+  const user = await users.updateOne(
+    { name: userName },
+    { $set: { role: "admin" } }
+  );
+  res.send(user);
+});
 
 // tag api
 app.post("/tag", verifyToken, isAdmin, async (req, res) => {
@@ -201,17 +195,23 @@ app.post("/tag", verifyToken, isAdmin, async (req, res) => {
   const response = await tags.insertOne(tag);
   res.send(response);
 });
-app.get("/tag", verifyToken, async (req, res) => {
+app.get("/tag", async (req, res) => {
   const response = await tags.find().toArray();
   res.send(response);
 });
 
 // admin api
 
-app.get("/admin", verifyToken, async (req, res) => {
-  const email = req.email;
+app.get("/admin/:email", verifyToken, async (req, res) => {
+  const { email } = req.params;
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
+
   const user = await users.findOne({ email: email });
-  res.send(user.role);
+  let admin = false;
+  if (user) {
+    admin = user.role === "admin";
+  }
+  res.send({ admin });
 });
 
 //post api
@@ -221,17 +221,14 @@ app.post("/post", verifyToken, async (req, res) => {
     Author_Email: post.Author_Email,
   });
   const user = await users.findOne({ email: post.Author_Email });
- 
+
   if (postCount >= 5 && user.badge !== "gold") {
-    return res
-      .status(403)
-      .send({
-        message: "User can't post more than 5 please  become a gold member.",
-      });
+    return res.status(403).send({
+      message: "User can't post more than 5 please  become a gold member.",
+    });
   }
   const response = await posts.insertOne({ ...post, createdAt: new Date() });
   res.send(response);
-  
 });
 
 app.get("/checkPostCount", verifyToken, async (req, res) => {
@@ -245,7 +242,7 @@ app.get("/checkPostCount", verifyToken, async (req, res) => {
 
 // get all post with tag and scherch
 
-app.get("/AllPost", verifyToken, async (req, res) => {
+app.get("/AllPost", async (req, res) => {
   const { tag, search } = req.query;
   let query = {};
 
@@ -287,6 +284,7 @@ app.get("/sortByPopularity", async (req, res) => {
 
 app.get("/mypost", verifyToken, async (req, res) => {
   const { email } = req.query;
+
   if (req.email !== email) return res.send({ message: "unauthorize access" });
 
   const page = parseInt(req.query.page) || 1;
@@ -295,7 +293,11 @@ app.get("/mypost", verifyToken, async (req, res) => {
 
   try {
     const total = await posts.countDocuments();
-    const items = await posts.find().skip(skip).limit(limit).toArray();
+    const items = await posts
+      .find({ Author_Email: email })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
 
     res.json({
       total,
@@ -308,17 +310,15 @@ app.get("/mypost", verifyToken, async (req, res) => {
     console.error("Error fetching items:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-
- 
 });
 
 app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
-  const {email} = req.query;
+  const { email } = req.query;
 
   if (req.email !== email) return res.send({ message: "unauthorize access" });
   const response = await posts.deleteOne({ _id: new ObjectId(id) });
- 
+
   res.send(response);
 });
 
@@ -354,9 +354,6 @@ app.post("/charge-payment", verifyToken, async (req, res) => {
 
   res.send("payment successfully done now you are a gold member");
 });
-
-
-
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
