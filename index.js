@@ -183,6 +183,18 @@ app.get("/users", verifyToken, isAdmin, async (req, res) => {
 
 });
 
+app.put("/makeAdmin", verifyToken, isAdmin, async (req, res) => {
+    const {userName} = req.query
+    const user = await users.updateOne(
+      { name: userName },
+      { $set: 
+        { role: "admin" }
+       }
+     
+    );
+    console.log(user)
+})
+
 // tag api
 app.post("/tag", verifyToken, isAdmin, async (req, res) => {
   const tag = req.body;
