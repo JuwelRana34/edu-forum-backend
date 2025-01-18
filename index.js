@@ -144,6 +144,7 @@ app.get("/user", verifyToken, async (req, res) => {
   const { email } = req.query;
   if (req.email !== email) return res.send({ message: "unauthorize access" });
   const user = await users.findOne({ email: email });
+
   res.send(user);
 });
 app.get("/user/recentPost", verifyToken, async (req, res) => {
@@ -158,9 +159,28 @@ app.get("/user/recentPost", verifyToken, async (req, res) => {
     .toArray();
   res.send(recentPosts);
 });
-app.get("/users", async (req, res) => {
-  const user = await users.find().toArray();
-  res.send(user);
+app.get("/users", verifyToken, isAdmin, async (req, res) => {
+     
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  try {
+    const total = await users.countDocuments();
+    const items = await users.find().skip(skip).limit(limit).toArray();
+
+    res.json({
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      items,
+    });
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+
 });
 
 // tag api
@@ -277,8 +297,7 @@ app.get("/mypost", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 
-  // const response = await posts.find({ Author_Email: email }).toArray();
-  // res.send(response);
+ 
 });
 
 app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
@@ -323,6 +342,9 @@ app.post("/charge-payment", verifyToken, async (req, res) => {
 
   res.send("payment successfully done now you are a gold member");
 });
+
+
+
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
