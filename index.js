@@ -231,6 +231,15 @@ app.post("/post", verifyToken, async (req, res) => {
   res.send(response);
 });
 
+app.get("/postDetails/:id", verifyToken, async (req, res) => {
+    const { id } = req.params;
+  const post = await posts.findOne({ _id: new ObjectId(id) });
+  res.send(post);
+ 
+})
+
+
+
 app.get("/checkPostCount", verifyToken, async (req, res) => {
   const { email } = req.query;
   if (req.email !== email) return res.send({ message: "unauthorize access" });
@@ -257,6 +266,7 @@ app.get("/AllPost", async (req, res) => {
   const response = await posts.find(query).sort({ createdAt: -1 }).toArray();
   res.send(response);
 });
+
 
 app.get("/sortByPopularity", async (req, res) => {
   try {
@@ -322,6 +332,13 @@ app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
   res.send(response);
 });
 
+// comments 
+
+app.post("/comment", verifyToken, async (req, res) => {
+  const comment = req.body;
+  const response = await comments.insertOne(comment);
+  res.send(response);
+});
 // payments api
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
