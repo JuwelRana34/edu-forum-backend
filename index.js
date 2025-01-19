@@ -233,9 +233,49 @@ app.post("/post", verifyToken, async (req, res) => {
 
 app.get("/postDetails/:id", verifyToken, async (req, res) => {
     const { id } = req.params;
-  const post = await posts.findOne({ _id: new ObjectId(id) });
-  res.send(post);
- 
+  // const post = await posts.findOne({ _id: new ObjectId(id) });
+  // res.send(post);
+
+  const post = await posts.aggregate(
+   [
+   {
+    $match: { _id: new ObjectId(id) }
+   },
+
+   {
+    $lookup: {
+      from: "comments",
+      let: { postId: "$_id" }, 
+      pipeline: [
+        {
+          $match: {
+            $expr: {
+              $eq: ["$postId", { $toString: "$$postId" }],
+            },
+          },
+        },
+      ],
+      as: "comments"
+    } 
+  },
+  {
+    $project: {
+      Title: 1,
+      Description: 1,
+      tag: 1,
+      Author_Image: 1,
+      Author_Name: 1,
+      Author_Email: 1,
+      UpVote: 1,
+      DownVote: 1,
+      createdAt: 1,
+      comments: 1
+    }
+  }
+]
+).toArray()
+res.send(post[0])
+
 })
 
 
@@ -253,18 +293,67 @@ app.get("/checkPostCount", verifyToken, async (req, res) => {
 
 app.get("/AllPost", async (req, res) => {
   const { tag, search } = req.query;
-  let query = {};
+  // let query = {};
 
-  if (tag) {
-    query = { tag: tag };
+  // if (tag) {
+  //   query = { tag: tag };
+  // }
+
+  // if (search) {
+  //   query = { tag: { $regex: `^${search}$`, $options: "i" } };
+  // }
+
+  // const response = await posts.find(query).sort({ createdAt: -1 }).toArray();
+
+  // res.send(response);
+
+  try {
+    // Build the query based on tag or search
+    let matchStage = {};
+
+    if (tag) {
+      matchStage = { tag: tag };
+    }
+
+    if (search) {
+      matchStage = { tag: { $regex: `^${search}$`, $options: "i" } };
+    }
+
+    // Aggregate pipeline
+    const response = await posts.aggregate([
+      {
+        $match: matchStage, // Match posts based on the query
+      },
+      {
+        $lookup: {
+          from: "comments", // The name of the comments collection
+          let: { postId: "$_id" }, // Pass `_id` of the post as a variable
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$postId", { $toString: "$$postId" }], // Match comments' postId with posts' _id as a string
+                },
+              },
+            },
+          ],
+          as: "comments", // Add the matched comments to a `comments` field
+        },
+      },
+      {
+        $sort: { createdAt: -1 }, // Sort posts by createdAt in descending order
+      },
+    ]).toArray();
+   
+    res.send(response); // Send the aggregated posts with comments
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    res.status(500).send({ message: "Internal Server Error" });
   }
 
-  if (search) {
-    query = { tag: { $regex: `^${search}$`, $options: "i" } };
-  }
 
-  const response = await posts.find(query).sort({ createdAt: -1 }).toArray();
-  res.send(response);
+
+
 });
 
 
@@ -337,6 +426,19 @@ app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
 app.post("/comment", verifyToken, async (req, res) => {
   const comment = req.body;
   const response = await comments.insertOne(comment);
+  res.send(response);
+});
+
+///make-announcement
+
+app.post("/make-announcement", verifyToken, isAdmin, async (req, res) => {
+  const announcement = req.body;
+  const response = await announcements.insertOne(announcement);
+  res.send(response);
+});
+
+app.get("/get-all-announcement", async (req, res) => {
+  const response = await announcements.find().toArray();
   res.send(response);
 });
 // payments api
