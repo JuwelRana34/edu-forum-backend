@@ -214,6 +214,13 @@ app.get("/admin/:email", verifyToken, async (req, res) => {
   res.send({ admin });
 });
 
+app.get("/info-full-web", verifyToken, async (req, res) => {
+    const totalUser = await users.countDocuments({});
+    const totalComment = await comments.countDocuments({});
+    const totalPosts = await posts.countDocuments({});
+     
+     res.send({ totalUser: totalUser, totalComment: totalComment, totalPosts: totalPosts})
+})
 //post api
 app.post("/post", verifyToken, async (req, res) => {
   const post = req.body;
@@ -459,12 +466,16 @@ app.get("/getComments/:postId", verifyToken, async (req, res) => {
 
 app.post("/make-announcement", verifyToken, isAdmin, async (req, res) => {
   const announcement = req.body;
-  const response = await announcements.insertOne(announcement);
+  const response = await announcements.insertOne({
+    ...announcement,
+    createdAt: new Date(),
+    
+  });
   res.send(response);
 });
 
 app.get("/get-all-announcement", async (req, res) => {
-  const response = await reports.find().toArray();
+  const response = await announcements.find().toArray();
   res.send(response);
 });
 
