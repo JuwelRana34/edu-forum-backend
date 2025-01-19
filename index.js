@@ -448,6 +448,13 @@ app.post("/comment", verifyToken, async (req, res) => {
   res.send(response);
 });
 
+app.get("/getComments/:postId", verifyToken, async (req, res) => {
+  const { postId } = req.params;
+
+  const results = await comments.find({ postId: postId }).toArray();
+  res.send(results);
+})
+
 ///make-announcement
 
 app.post("/make-announcement", verifyToken, isAdmin, async (req, res) => {
@@ -457,9 +464,30 @@ app.post("/make-announcement", verifyToken, isAdmin, async (req, res) => {
 });
 
 app.get("/get-all-announcement", async (req, res) => {
-  const response = await announcements.find().toArray();
+  const response = await reports.find().toArray();
   res.send(response);
 });
+
+// reports
+
+app.post("/comments_report", verifyToken, async (req, res) => {
+  const reportInfo = req.body;
+  const response = await reports.insertOne({...reportInfo,createdAt: new Date()});
+  res.send(response);
+});
+
+app.get("/get-all-reports",verifyToken, isAdmin, async (req, res) => {
+  const response = await reports.find().toArray();
+  res.send(response);
+});
+app.delete("/delete-comment/:reportId/:commentId",verifyToken, isAdmin, async (req, res) => {
+   const {reportId, commentId} = req.params;
+   await reports.deleteOne( { _id: new ObjectId(reportId) } );
+   const response = await comments.deleteOne( { _id: new ObjectId(commentId) } );
+  res.send(response);
+});
+
+
 // payments api
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
@@ -475,6 +503,27 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 
   res.send({ client_secret: client_secret });
 });
+// votes
+
+app.post("/upvote", verifyToken, async (req, res) => {
+  const { id } = req.body;
+  const post = await posts.updateOne(
+    { _id: new ObjectId(id) },
+    { $inc: { UpVote: 1 } },
+    { new: true }
+  );
+
+  res.send(post);
+});
+
+app.post("/downvote", verifyToken, async (req, res) => {
+  const { id } = req.body;
+  const post = await posts.updateOne(
+    { _id: new ObjectId(id) },
+    { $inc: { DownVote: 1 } },
+    { new: true }
+  );
+})
 
 app.post("/charge-payment", verifyToken, async (req, res) => {
   const { email, amount, paymentIntentId } = req.body;
