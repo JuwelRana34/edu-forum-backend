@@ -510,6 +510,12 @@ app.get("/get-all-announcement", async (req, res) => {
   res.send(response);
 });
 
+app.delete("/announcements/delete/:id", verifyToken, isAdmin, async (req, res) => {
+  const {id}  = req.params;
+  const response =  await announcements.deleteOne({ _id: new ObjectId(id) });
+  res.send(response);
+})
+
 // reports
 
 app.post("/comments_report", verifyToken, async (req, res) => {
