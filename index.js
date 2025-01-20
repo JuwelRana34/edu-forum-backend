@@ -579,21 +579,16 @@ app.post("/vote-upvote-downvote", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Invalid action" });
     }
 
-    console.log("Update query:", updateQuery);
-
-    // Update the post in MongoDB
     const result = await posts.updateOne(
       { _id: new ObjectId(postId) },
       updateQuery
     );
 
     if (result.modifiedCount === 0) {
-      return res.status(400).json({ error: "No changes made to the post" });
+      return res.status(400).json({ error: "No changes post" });
     }
-
     res.json({ success: true, message: "Vote updated successfully" });
   } catch (error) {
-    console.error("Error updating vote:", error);
     res.status(500).json({ error: "An error occurred while updating the vote" });
   }
 });
