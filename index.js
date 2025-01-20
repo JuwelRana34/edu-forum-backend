@@ -91,14 +91,6 @@ const verifyToken = (req, res, next) => {
   });
 };
 const isAdmin = async (req, res, next) => {
-  // let token = req.cookies?.token;
-  // if (!token) {
-  //   return res.status(403).send({ message: " unauthorized access" });
-  // }
-  // jwt.verify(token, process.env.jwt_secret, async (err, decoded) => {
-  //   if (err) {
-  //     return res.status(401).send({ message: " unauthorized access" });
-  //   }
 
   const email = req.email;
   const user = await users.findOne({ email: email });
@@ -234,7 +226,12 @@ app.post("/post", verifyToken, async (req, res) => {
       message: "User can't post more than 5 please  become a gold member.",
     });
   }
-  const response = await posts.insertOne({ ...post, createdAt: new Date() });
+ 
+  const response = await posts.insertOne({
+     ...post, 
+     voteBy:[],
+     createdAt: new Date()
+     });
   res.send(response);
 });
 
@@ -440,8 +437,11 @@ app.get("/mypost", verifyToken, async (req, res) => {
 app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const { email } = req.query;
-
+  
   if (req.email !== email) return res.send({ message: "unauthorize access" });
+
+  await comments.deleteMany({postId: id})
+
   const response = await posts.deleteOne({ _id: new ObjectId(id) });
 
   res.send(response);
@@ -516,25 +516,90 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 });
 // votes
 
-app.post("/upvote", verifyToken, async (req, res) => {
-  const { id } = req.body;
-  const post = await posts.updateOne(
-    { _id: new ObjectId(id) },
-    { $inc: { UpVote: 1 } },
-    { new: true }
-  );
 
-  res.send(post);
+app.post("/vote-upvote-downvote", verifyToken, async (req, res) => {
+  const { postId, userEmail, action } = req.body;
+
+  try {
+    const post = await posts.findOne({ _id: new ObjectId(postId) });
+  
+    const voteBy = post.voteBy || [];
+
+    // current vote of user
+    const currentVote = voteBy.find(vote => vote.userEmail === userEmail);
+
+    // update query
+    let updateQuery = {};
+
+    if (action === "upvote") {
+      if (currentVote && currentVote.action === "upvote") {
+
+        updateQuery = {
+          $inc: { UpVote: -1 },
+          $pull: { voteBy: { userEmail } }
+        };
+      } else {
+
+        updateQuery = {
+          $inc: {
+            UpVote: 1,
+            ...(currentVote && currentVote.action === "downvote" ? { DownVote: -1 } : {})
+          },
+          $set: { 
+            voteBy: [
+              ...voteBy.filter(vote => vote.userEmail !== userEmail),
+              { userEmail, action: "upvote" }
+            ]
+          }
+        };
+      }
+    } else if (action === "downvote") {
+      if (currentVote && currentVote.action === "downvote") {
+
+        updateQuery = {
+          $inc: { DownVote: -1 },
+          $pull: { voteBy: { userEmail } }
+        };
+      } else {
+
+        updateQuery = {
+          $inc: {
+            DownVote: 1,
+            ...(currentVote && currentVote.action === "upvote" ? { UpVote: -1 } : {})
+          },
+          $set: { 
+            voteBy: [
+              ...voteBy.filter(vote => vote.userEmail !== userEmail),
+              { userEmail, action: "downvote" }
+            ]
+          }
+        };
+      }
+    } else {
+      return res.status(400).json({ error: "Invalid action" });
+    }
+
+    console.log("Update query:", updateQuery);
+
+    // Update the post in MongoDB
+    const result = await posts.updateOne(
+      { _id: new ObjectId(postId) },
+      updateQuery
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({ error: "No changes made to the post" });
+    }
+
+    res.json({ success: true, message: "Vote updated successfully" });
+  } catch (error) {
+    console.error("Error updating vote:", error);
+    res.status(500).json({ error: "An error occurred while updating the vote" });
+  }
 });
 
-app.post("/downvote", verifyToken, async (req, res) => {
-  const { id } = req.body;
-  const post = await posts.updateOne(
-    { _id: new ObjectId(id) },
-    { $inc: { DownVote: 1 } },
-    { new: true }
-  );
-})
+
+
 
 app.post("/charge-payment", verifyToken, async (req, res) => {
   const { email, amount, paymentIntentId } = req.body;
