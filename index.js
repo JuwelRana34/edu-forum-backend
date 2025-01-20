@@ -112,8 +112,8 @@ app.post("/logOut", (req, res) => {
 });
 
 app.get("/", async (req, res) => {
-  const response = await collection.find().toArray();
-  res.send(response);
+  // const response = await users.find().toArray();
+  res.send("hello world");
 });
 
 // user api
@@ -141,13 +141,44 @@ app.get("/user", verifyToken, async (req, res) => {
 app.get("/user/recentPost", verifyToken, async (req, res) => {
   const { email } = req.query;
   if (req.email !== email) return res.send({ message: "unauthorize access" });
-  const recentPosts = await posts
-    .find({
-      Author_Email: email,
-    })
-    .sort({ createdAt: -1 })
-    .limit(3)
-    .toArray();
+  const recentPosts = await posts.aggregate([
+    {
+      $addFields:{
+        id:{ $toString: "$_id" }
+      }
+    },
+    {  
+    $lookup: {
+      from: "comments",
+      localField: "id",
+      foreignField: "postId",
+      as: "comments",
+    }
+  },
+  {
+    $project:{
+      _id: 1,
+      Title: 1,
+      Description: 1,
+      tag: 1,
+      Author_Image: 1,
+      Author_Name: 1,
+      Author_Email: 1,
+      UpVote: 1,
+      DownVote: 1,
+      createdAt: 1,
+      comments: 1,
+      popularity: 1,
+      
+    }
+  },
+  
+    {
+      $sort: { popularity: -1 },
+    },
+  
+    ]).limit(3).toArray()
+
   res.send(recentPosts);
 });
 app.get("/users", verifyToken, isAdmin, async (req, res) => {
@@ -235,7 +266,7 @@ app.post("/post", verifyToken, async (req, res) => {
   res.send(response);
 });
 
-app.get("/postDetails/:id", verifyToken, async (req, res) => {
+app.get("/postDetails/:id", async (req, res) => {
   const { id } = req.params;
 
   const post = await posts
@@ -517,7 +548,7 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 // votes
 
 
-app.post("/vote-upvote-downvote", verifyToken, async (req, res) => {
+app.patch("/vote-upvote-downvote", verifyToken, async (req, res) => {
   const { postId, userEmail, action } = req.body;
 
   try {
