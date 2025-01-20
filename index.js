@@ -320,9 +320,10 @@ app.get("/checkPostCount", verifyToken, async (req, res) => {
 // get all post with tag and scherch
 
 app.get("/AllPost", async (req, res) => {
-  const { tag, search } = req.query;
+  const { tag, search, page = 1, limit = 10 } = req.query;
   try {
-    // query based on tag or search
+    const limitNum = parseInt(limit, 10);
+
     let query = {};
 
     if (tag) {
@@ -333,18 +334,12 @@ app.get("/AllPost", async (req, res) => {
       query = { tag: { $regex: `^${search}$`, $options: "i" } };
     }
 
-    // Aggregate the results
+    const skip = (page - 1) * limitNum;
+
     const response = await posts
       .aggregate([
-        {
-          $match: query,
-        },
-
-        {
-          $addFields: {
-            id: { $toString: "$_id" },
-          },
-        },
+        { $match: query },
+        { $addFields: { id: { $toString: "$_id" } } },
         {
           $lookup: {
             from: "comments",
@@ -369,13 +364,14 @@ app.get("/AllPost", async (req, res) => {
             popularity: 1,
           },
         },
-        {
-          $sort: { createdAt: -1 },
-        },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limitNum },
       ])
       .toArray();
-
-    res.send(response);
+    const totalPosts = await posts.countDocuments(query);
+    const totalPages = Math.ceil(totalPosts / limitNum);
+    res.send({ posts: response, totalPages: totalPages });
   } catch (error) {
     console.error("Error fetching posts:", error);
     res.status(500).send({ message: "Internal Server Error" });
@@ -383,7 +379,12 @@ app.get("/AllPost", async (req, res) => {
 });
 
 app.get("/sortByPopularity", async (req, res) => {
+  const { page = 1, limit = 5 } = req.query;
   try {
+    const limitNum = parseInt(limit, 10);
+
+    const skip = (page - 1) * limitNum;
+
     const post = await posts
       .aggregate([
         {
@@ -423,17 +424,19 @@ app.get("/sortByPopularity", async (req, res) => {
         {
           $sort: { popularity: -1 },
         },
+        { $skip: skip },
+        { $limit: limitNum },
       ])
       .toArray();
 
-    res.status(200).json(post);
+    const totalPosts = await posts.countDocuments();
+    const totalPages = Math.ceil(totalPosts / limitNum);
+    res.send({ posts: post, totalPages: totalPages });
   } catch (error) {
     console.error("Error sorting by popularity:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-// mypost
 
 app.get("/mypost", verifyToken, async (req, res) => {
   const { email } = req.query;
