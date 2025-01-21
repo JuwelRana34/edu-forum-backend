@@ -6,7 +6,8 @@ This project serves as the backend for **Edu Forum BD**, a platform designed for
 
 ## **Live Site**
 
-- **Frontend**: [Edu Forum BD](https://edu-forum-bd.web.app)
+- **Firebase**: [Edu Forum BD](https://edu-forum-bd.web.app)
+- **Netlify**: [Edu Forum BD](https://edu-forum.netlify.app/)
 
 ---
 

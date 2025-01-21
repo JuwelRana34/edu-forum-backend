@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 //  middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://edu-forum-bd.web.app"],
+    origin: ["https://edu-forum-bd.web.app","https://edu-forum.netlify.app"],
     credentials: true,
   })
 );
