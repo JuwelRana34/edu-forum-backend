@@ -91,7 +91,6 @@ const verifyToken = (req, res, next) => {
   });
 };
 const isAdmin = async (req, res, next) => {
-
   const email = req.email;
   const user = await users.findOne({ email: email });
   if (user.role !== "admin") {
@@ -141,46 +140,47 @@ app.get("/user", verifyToken, async (req, res) => {
 app.get("/user/recentPost", verifyToken, async (req, res) => {
   const { email } = req.query;
   if (req.email !== email) return res.send({ message: "unauthorize access" });
-  const recentPosts = await posts.aggregate([
-    {
-      $match: { Author_Email: email },
-    },
-    {
-      $addFields:{
-        id:{ $toString: "$_id" }
-      }
-    },
-    {  
-    $lookup: {
-      from: "comments",
-      localField: "id",
-      foreignField: "postId",
-      as: "comments",
-    }
-  },
-  {
-    $project:{
-      _id: 1,
-      Title: 1,
-      Description: 1,
-      tag: 1,
-      Author_Image: 1,
-      Author_Name: 1,
-      Author_Email: 1,
-      UpVote: 1,
-      DownVote: 1,
-      createdAt: 1,
-      comments: 1,
-      popularity: 1,
-      
-    }
-  },
-  
-    {
-      $sort: { popularity: -1 },
-    },
-  
-    ]).limit(3).toArray()
+  const recentPosts = await posts
+    .aggregate([
+      {
+        $match: { Author_Email: email },
+      },
+      {
+        $addFields: {
+          id: { $toString: "$_id" },
+        },
+      },
+      {
+        $lookup: {
+          from: "comments",
+          localField: "id",
+          foreignField: "postId",
+          as: "comments",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          Title: 1,
+          Description: 1,
+          tag: 1,
+          Author_Image: 1,
+          Author_Name: 1,
+          Author_Email: 1,
+          UpVote: 1,
+          DownVote: 1,
+          createdAt: 1,
+          comments: 1,
+          popularity: 1,
+        },
+      },
+
+      {
+        $sort: { popularity: -1 },
+      },
+    ])
+    .limit(3)
+    .toArray();
 
   res.send(recentPosts);
 });
@@ -241,12 +241,16 @@ app.get("/admin/:email", verifyToken, async (req, res) => {
 });
 
 app.get("/info-full-web", verifyToken, async (req, res) => {
-    const totalUser = await users.countDocuments({});
-    const totalComment = await comments.countDocuments({});
-    const totalPosts = await posts.countDocuments({});
-     
-     res.send({ totalUser: totalUser, totalComment: totalComment, totalPosts: totalPosts})
-})
+  const totalUser = await users.countDocuments({});
+  const totalComment = await comments.countDocuments({});
+  const totalPosts = await posts.countDocuments({});
+
+  res.send({
+    totalUser: totalUser,
+    totalComment: totalComment,
+    totalPosts: totalPosts,
+  });
+});
 //post api
 app.post("/post", verifyToken, async (req, res) => {
   const post = req.body;
@@ -260,12 +264,12 @@ app.post("/post", verifyToken, async (req, res) => {
       message: "User can't post more than 5 please  become a gold member.",
     });
   }
- 
+
   const response = await posts.insertOne({
-     ...post, 
-     voteBy:[],
-     createdAt: new Date()
-     });
+    ...post,
+    voteBy: [],
+    createdAt: new Date(),
+  });
   res.send(response);
 });
 
@@ -474,10 +478,10 @@ app.get("/mypost", verifyToken, async (req, res) => {
 app.delete("/deleteMyPost/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const { email } = req.query;
-  
+
   if (req.email !== email) return res.send({ message: "unauthorize access" });
 
-  await comments.deleteMany({postId: id})
+  await comments.deleteMany({ postId: id });
 
   const response = await posts.deleteOne({ _id: new ObjectId(id) });
 
@@ -497,7 +501,7 @@ app.get("/getComments/:postId", verifyToken, async (req, res) => {
 
   const results = await comments.find({ postId: postId }).toArray();
   res.send(results);
-})
+});
 
 ///make-announcement
 
@@ -506,7 +510,6 @@ app.post("/make-announcement", verifyToken, isAdmin, async (req, res) => {
   const response = await announcements.insertOne({
     ...announcement,
     createdAt: new Date(),
-    
   });
   res.send(response);
 });
@@ -516,31 +519,72 @@ app.get("/get-all-announcement", async (req, res) => {
   res.send(response);
 });
 
-app.delete("/announcements/delete/:id", verifyToken, isAdmin, async (req, res) => {
-  const {id}  = req.params;
-  const response =  await announcements.deleteOne({ _id: new ObjectId(id) });
-  res.send(response);
-})
+app.delete(
+  "/announcements/delete/:id",
+  verifyToken,
+  isAdmin,
+  async (req, res) => {
+    const { id } = req.params;
+    const response = await announcements.deleteOne({ _id: new ObjectId(id) });
+    res.send(response);
+  }
+);
 
 // reports
 
 app.post("/comments_report", verifyToken, async (req, res) => {
   const reportInfo = req.body;
-  const response = await reports.insertOne({...reportInfo,createdAt: new Date()});
+  const response = await reports.insertOne({
+    ...reportInfo,
+    createdAt: new Date(),
+  });
   res.send(response);
 });
 
-app.get("/get-all-reports",verifyToken, isAdmin, async (req, res) => {
-  const response = await reports.find().toArray();
-  res.send(response);
-});
-app.delete("/delete-comment/:reportId/:commentId",verifyToken, isAdmin, async (req, res) => {
-   const {reportId, commentId} = req.params;
-   await reports.deleteOne( { _id: new ObjectId(reportId) } );
-   const response = await comments.deleteOne( { _id: new ObjectId(commentId) } );
-  res.send(response);
-});
+app.get("/get-all-reports", verifyToken, isAdmin, async (req, res) => {
+  // const response = await reports.find().toArray();
+  const response = await reports
+    .aggregate([
+      {
+        $addFields: { id: { $toObjectId: "$commentId" } },
+      },
+      {
+        $lookup: {
+          from: "comments",
+          localField: "id",
+          foreignField: "_id",
+          as: "comment",
+        },
+      },
+      {
+        $unwind: "$comment",
+      },
+      {
+        $project: {
+          _id: 1,
+          commentId: 1,
+          comment: "$comment.comment",
+          repoter: 1,
+          feedback: 1,
+          commenter: 1,
+        },
+      },
+    ])
+    .toArray();
 
+  res.send(response);
+});
+app.delete(
+  "/delete-comment/:reportId/:commentId",
+  verifyToken,
+  isAdmin,
+  async (req, res) => {
+    const { reportId, commentId } = req.params;
+    await reports.deleteOne({ _id: new ObjectId(reportId) });
+    const response = await comments.deleteOne({ _id: new ObjectId(commentId) });
+    res.send(response);
+  }
+);
 
 // payments api
 
@@ -559,63 +603,62 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 });
 // votes
 
-
 app.patch("/vote-upvote-downvote", verifyToken, async (req, res) => {
   const { postId, userEmail, action } = req.body;
 
   try {
     const post = await posts.findOne({ _id: new ObjectId(postId) });
-  
+
     const voteBy = post.voteBy || [];
 
     // current vote of user
-    const currentVote = voteBy.find(vote => vote.userEmail === userEmail);
+    const currentVote = voteBy.find((vote) => vote.userEmail === userEmail);
 
     // update query
     let updateQuery = {};
 
     if (action === "upvote") {
       if (currentVote && currentVote.action === "upvote") {
-
         updateQuery = {
           $inc: { UpVote: -1 },
-          $pull: { voteBy: { userEmail } }
+          $pull: { voteBy: { userEmail } },
         };
       } else {
-
         updateQuery = {
           $inc: {
             UpVote: 1,
-            ...(currentVote && currentVote.action === "downvote" ? { DownVote: -1 } : {})
+            ...(currentVote && currentVote.action === "downvote"
+              ? { DownVote: -1 }
+              : {}),
           },
-          $set: { 
+          $set: {
             voteBy: [
-              ...voteBy.filter(vote => vote.userEmail !== userEmail),
-              { userEmail, action: "upvote" }
-            ]
-          }
+              ...voteBy.filter((vote) => vote.userEmail !== userEmail),
+              { userEmail, action: "upvote" },
+            ],
+          },
         };
       }
     } else if (action === "downvote") {
       if (currentVote && currentVote.action === "downvote") {
-
         updateQuery = {
           $inc: { DownVote: -1 },
-          $pull: { voteBy: { userEmail } }
+          $pull: { voteBy: { userEmail } },
         };
       } else {
-
         updateQuery = {
           $inc: {
             DownVote: 1,
-            ...(currentVote && currentVote.action === "upvote" ? { UpVote: -1 } : {})
+            ...(currentVote && currentVote.action === "upvote"
+              ? { UpVote: -1 }
+              : {}),
           },
-          $set: { 
+          $set: {
             voteBy: [
-              ...voteBy.filter(vote => vote.userEmail !== userEmail),
-              { userEmail, action: "downvote" }
-            ]
-          }
+              ...voteBy.filter((vote) => vote.userEmail !== userEmail),
+              { userEmail, action: "downvote" },
+            ],
+          },
         };
       }
     } else {
@@ -632,12 +675,11 @@ app.patch("/vote-upvote-downvote", verifyToken, async (req, res) => {
     }
     res.json({ success: true, message: "Vote updated successfully" });
   } catch (error) {
-    res.status(500).json({ error: "An error occurred while updating the vote" });
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating the vote" });
   }
 });
-
-
-
 
 app.post("/charge-payment", verifyToken, async (req, res) => {
   const { email, amount, paymentIntentId } = req.body;
