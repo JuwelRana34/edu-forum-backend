@@ -143,6 +143,9 @@ app.get("/user/recentPost", verifyToken, async (req, res) => {
   if (req.email !== email) return res.send({ message: "unauthorize access" });
   const recentPosts = await posts.aggregate([
     {
+      $match: { Author_Email: email },
+    },
+    {
       $addFields:{
         id:{ $toString: "$_id" }
       }
