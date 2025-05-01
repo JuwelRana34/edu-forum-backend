@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 //  middleware
 app.use(
   cors({
-    origin: ["https://edu-forum-bd.web.app","https://edu-forum.netlify.app"],
+    origin: ["http://localhost:5173","https://edu-forum-bd.web.app","https://edu-forum.netlify.app"],
     credentials: true,
   })
 );
@@ -24,7 +24,6 @@ const stripe = require("stripe")(process.env.PAYMENT_SECRET);
 // database setup
 const uri = `mongodb+srv://${process.env.DB_UserName}:${process.env.DB_Pass}@cluster0.ocbhdf0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// const uri ="mongodb://localhost:27017"
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -46,16 +45,11 @@ const tags = database.collection("tags ");
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
-    // Send a ping to confirm a successful connection
-    // await database.command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
   } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+   
   }
 }
 run().catch(console.dir);
@@ -136,6 +130,17 @@ app.get("/user", verifyToken, async (req, res) => {
   const user = await users.findOne({ email: email });
 
   res.send(user);
+});
+app.delete("/user/:id/:email", verifyToken, async (req, res) => {
+  const { id , email } = req.params;
+  if (req.email !== email) return res.send({ message: "unauthorize access" });
+ await users.deleteOne({ _id: new ObjectId(id) });
+  res.send("user deleted successfully");
+});
+app.delete("/user/:id", verifyToken, async (req, res) => {
+  const { id } = req.params;
+ await users.deleteOne({ _id: new ObjectId(id) });
+  res.send("Account deleted successfully");
 });
 app.get("/user/recentPost", verifyToken, async (req, res) => {
   const { email } = req.query;
