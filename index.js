@@ -41,6 +41,7 @@ const comments = database.collection("comments");
 const announcements = database.collection("announcements");
 const reports = database.collection("reports");
 const payments = database.collection("payments");
+const events = database.collection("events");
 const tags = database.collection("tags ");
 
 async function run() {
@@ -77,6 +78,7 @@ const verifyToken = (req, res, next) => {
   }
   jwt.verify(token, process.env.jwt_secret, (err, decoded) => {
     if (err) {
+      console.log(err, "token error");
       return res.status(401).send({ message: " unauthorized access" });
     }
 
@@ -110,6 +112,41 @@ app.get("/", async (req, res) => {
 });
 
 // user api
+app.post("/registerEvents", verifyToken, async (req, res) => {
+  const eventInfo = req.body;
+
+  const alreadyJoin = await events.findOne({
+    email: eventInfo.email,
+    title: eventInfo.title
+  });
+
+  if (alreadyJoin) {
+    return res.status(409).json("You already registered for this event");
+  }
+
+  const result = await events.insertOne(eventInfo);
+  res.status(200).json({ data: result });
+});
+
+app.get("/registerEvents/:email", verifyToken, async (req, res) => {
+  const { email } = req.params;
+
+  if (!req.email || req.email !== email) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+  const result = await events.find({user: email}).toArray();
+  res.send(result);
+});
+
+app.get("/allEvents", verifyToken, isAdmin, async (req, res) => {
+  const result = await events.find({}).toArray();
+  res.send(result);
+});
+app.delete("/registerEvents/allEvents",verifyToken, isAdmin , async (req, res) => {
+const result = await events.deleteMany({});
+res.send(result);
+});
+
 app.post("/user", async (req, res) => {
   const userinfo = req.body;
   const user = await users.findOne({ email: userinfo.email });
